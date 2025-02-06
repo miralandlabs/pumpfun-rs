@@ -18,11 +18,12 @@ use anchor_client::{
 };
 use anchor_spl::associated_token::{
     get_associated_token_address,
-    spl_associated_token_account::instruction::create_associated_token_account,
+    // spl_associated_token_account::instruction::create_associated_token_account,
 };
 use borsh::BorshDeserialize;
 pub use pumpfun_cpi as cpi;
-use solana_sdk::compute_budget::ComputeBudgetInstruction;
+use solana_sdk::{compute_budget::ComputeBudgetInstruction, instruction::Instruction};
+use spl_associated_token_account::instruction::create_associated_token_account;
 use std::sync::Arc;
 
 /// Configuration for priority fee compute unit parameters
@@ -320,6 +321,75 @@ impl PumpFun {
         Ok(signature)
     }
 
+    pub async fn buy_instr(
+        &self,
+        mint: &Pubkey,
+        amount_sol: u64,
+        slippage_basis_points: Option<u64>,
+        priority_fee: Option<PriorityFee>,
+    ) -> Result<Vec<Instruction>, error::ClientError> {
+        // Get accounts and calculate buy amounts
+        let global_account = self.get_global_account().await?;
+        let bonding_curve_account = self.get_bonding_curve_account(mint).await?;
+        let buy_amount = bonding_curve_account
+            .get_buy_price(amount_sol)
+            .map_err(error::ClientError::BondingCurveError)?;
+        let buy_amount_with_slippage =
+            utils::calculate_with_slippage_buy(amount_sol, slippage_basis_points.unwrap_or(500));
+
+        let mut request = self.program.request();
+
+        // Add priority fee if provided
+        if let Some(fee) = priority_fee {
+            if let Some(limit) = fee.limit {
+                let limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(limit);
+                request = request.instruction(limit_ix);
+            }
+
+            if let Some(price) = fee.price {
+                let price_ix = ComputeBudgetInstruction::set_compute_unit_price(price);
+                request = request.instruction(price_ix);
+            }
+        }
+
+        // Create Associated Token Account if needed
+        let ata: Pubkey = get_associated_token_address(&self.payer.pubkey(), mint);
+        if self.rpc.get_account(&ata).await.is_err() {
+            request = request.instruction(create_associated_token_account(
+                &self.payer.pubkey(),
+                &self.payer.pubkey(),
+                mint,
+                &constants::accounts::TOKEN_PROGRAM,
+            ));
+        }
+
+        // Add buy instruction
+        request = request.instruction(instruction::buy(
+            &self.payer,
+            mint,
+            &global_account.fee_recipient,
+            cpi::instruction::Buy {
+                _amount: buy_amount,
+                _max_sol_cost: buy_amount_with_slippage,
+            },
+        ));
+
+        // // Add signer
+        // request = request.signer(&self.payer);
+
+        // // Send transaction
+        // let signature: Signature = request
+        //     .send()
+        //     .await
+        //     .map_err(error::ClientError::AnchorClientError)?;
+
+        // Ok(signature)
+
+        let instructions = request.instructions()?;
+
+        Ok(instructions)
+    }
+
     /// Sells tokens back to the bonding curve in exchange for SOL
     ///
     /// # Arguments
@@ -390,6 +460,70 @@ impl PumpFun {
             .map_err(error::ClientError::AnchorClientError)?;
 
         Ok(signature)
+    }
+
+    pub async fn sell_instr(
+        &self,
+        mint: &Pubkey,
+        amount_token: Option<u64>,
+        slippage_basis_points: Option<u64>,
+        priority_fee: Option<PriorityFee>,
+    ) -> Result<Vec<Instruction>, error::ClientError> {
+        // Get accounts and calculate sell amounts
+        let ata: Pubkey = get_associated_token_address(&self.payer.pubkey(), mint);
+        let balance = self.rpc.get_token_account_balance(&ata).await?;
+        let balance_u64: u64 = balance.amount.parse::<u64>().unwrap();
+        let amount = amount_token.unwrap_or(balance_u64);
+        let global_account = self.get_global_account().await?;
+        let bonding_curve_account = self.get_bonding_curve_account(mint).await?;
+        let min_sol_output = bonding_curve_account
+            .get_sell_price(amount, global_account.fee_basis_points)
+            .map_err(error::ClientError::BondingCurveError)?;
+        let min_sol_output = utils::calculate_with_slippage_sell(
+            min_sol_output,
+            slippage_basis_points.unwrap_or(500),
+        );
+
+        let mut request = self.program.request();
+
+        // Add priority fee if provided
+        if let Some(fee) = priority_fee {
+            if let Some(limit) = fee.limit {
+                let limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(limit);
+                request = request.instruction(limit_ix);
+            }
+
+            if let Some(price) = fee.price {
+                let price_ix = ComputeBudgetInstruction::set_compute_unit_price(price);
+                request = request.instruction(price_ix);
+            }
+        }
+
+        // Add sell instruction
+        request = request.instruction(instruction::sell(
+            &self.payer,
+            mint,
+            &global_account.fee_recipient,
+            cpi::instruction::Sell {
+                _amount: amount,
+                _min_sol_output: min_sol_output,
+            },
+        ));
+
+        // Add signer
+        request = request.signer(&self.payer);
+
+        // // Send transaction
+        // let signature: Signature = request
+        //     .send()
+        //     .await
+        //     .map_err(error::ClientError::AnchorClientError)?;
+
+        // Ok(signature)
+
+        let instructions = request.instructions()?;
+
+        Ok(instructions)
     }
 
     /// Gets the Program Derived Address (PDA) for the global state account
