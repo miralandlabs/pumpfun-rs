@@ -113,7 +113,7 @@ impl PumpFun {
         // First upload metadata and image to IPFS
         let ipfs: utils::TokenMetadataResponse = utils::create_token_metadata(metadata)
             .await
-            .map_err(error::ClientError::UploadMetadataError)?;
+            .map_err(|_| error::ClientError::UploadMetadataError)?;
 
         let mut request = self.program.request();
 
@@ -177,7 +177,7 @@ impl PumpFun {
         // Upload metadata to IPFS first
         let ipfs: utils::TokenMetadataResponse = utils::create_token_metadata(metadata)
             .await
-            .map_err(error::ClientError::UploadMetadataError)?;
+            .map_err(|_| error::ClientError::UploadMetadataError)?;
 
         // Get accounts and calculate buy amounts
         let global_account = self.get_global_account().await?;

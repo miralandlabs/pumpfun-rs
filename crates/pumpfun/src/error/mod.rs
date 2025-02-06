@@ -31,7 +31,8 @@ pub enum ClientError {
     /// Error from Solana RPC client
     SolanaClientError(solana_client::client_error::ClientError),
     /// Error uploading metadata
-    UploadMetadataError(Box<dyn std::error::Error>),
+    // UploadMetadataError(Box<dyn std::error::Error>),
+    UploadMetadataError,
     /// Error from Anchor client
     AnchorClientError(anchor_client::ClientError),
     /// Invalid input parameters
@@ -51,7 +52,8 @@ impl std::fmt::Display for ClientError {
             Self::BondingCurveError(msg) => write!(f, "Bonding curve error: {}", msg),
             Self::BorshError(err) => write!(f, "Borsh serialization error: {}", err),
             Self::SolanaClientError(err) => write!(f, "Solana client error: {}", err),
-            Self::UploadMetadataError(err) => write!(f, "Metadata upload error: {}", err),
+            // Self::UploadMetadataError(err) => write!(f, "Metadata upload error: {}", err),
+            Self::UploadMetadataError => write!(f, "Metadata upload error"),
             Self::AnchorClientError(err) => write!(f, "Anchor client error: {}", err),
             Self::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
             Self::InsufficientFunds => write!(f, "Insufficient funds for transaction"),
@@ -66,7 +68,8 @@ impl std::error::Error for ClientError {
         match self {
             Self::BorshError(err) => Some(err),
             Self::SolanaClientError(err) => Some(err),
-            Self::UploadMetadataError(err) => Some(err.as_ref()),
+            // Self::UploadMetadataError(err) => Some(err.as_ref()),
+            Self::UploadMetadataError => None,
             Self::AnchorClientError(err) => Some(err),
             _ => None,
         }
