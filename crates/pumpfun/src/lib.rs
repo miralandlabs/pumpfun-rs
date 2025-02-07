@@ -105,8 +105,8 @@ impl PumpFun {
     ///
     /// Returns the transaction signature if successful, or a ClientError if the operation fails
     pub async fn create(
-        &self,
-        mint: &Keypair,
+        &'static self,
+        mint: &'static Keypair,
         metadata: utils::CreateTokenMetadata,
         priority_fee: Option<PriorityFee>,
     ) -> Result<Signature, error::ClientError> {
@@ -167,8 +167,8 @@ impl PumpFun {
     ///
     /// Returns the transaction signature if successful, or a ClientError if the operation fails
     pub async fn create_and_buy(
-        &self,
-        mint: &Keypair,
+        &'static self,
+        mint: &'static Keypair,
         metadata: utils::CreateTokenMetadata,
         amount_sol: u64,
         slippage_basis_points: Option<u64>,
@@ -257,7 +257,7 @@ impl PumpFun {
     ///
     /// Returns the transaction signature if successful, or a ClientError if the operation fails
     pub async fn buy(
-        &self,
+        &'static self,
         mint: &Pubkey,
         amount_sol: u64,
         slippage_basis_points: Option<u64>,
@@ -403,7 +403,7 @@ impl PumpFun {
     ///
     /// Returns the transaction signature if successful, or a ClientError if the operation fails
     pub async fn sell(
-        &self,
+        &'static self,
         mint: &Pubkey,
         amount_token: Option<u64>,
         slippage_basis_points: Option<u64>,
@@ -510,8 +510,8 @@ impl PumpFun {
             },
         ));
 
-        // Add signer
-        request = request.signer(&self.payer);
+        // // Add signer
+        // request = request.signer(&self.payer);
 
         // // Send transaction
         // let signature: Signature = request

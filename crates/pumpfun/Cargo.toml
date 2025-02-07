@@ -13,8 +13,12 @@ readme = "README.md"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-anchor-client = { version = "0.29.0", features = ["async"] }
-anchor-spl = "0.29.0"
+# anchor-client = { version = "0.29.0", features = ["async"] }
+anchor-client = { package = "anchor-client", features = [
+    "async",
+], git = "https://github.com/miralandlabs/anchor-0.29.0-tokio.git", branch = "anchor-0.29-tokio" }
+# anchor-spl = "0.29.0"
+anchor-spl = { package = "anchor-spl", git = "https://github.com/miralandlabs/anchor-0.29.0-tokio.git", branch = "anchor-0.29-tokio" }
 borsh = { version = "1.5.3", features = ["derive"] }
 isahc = "1.7.2"
 # mpl-token-metadata = "5.1.0"
