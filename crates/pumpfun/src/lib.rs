@@ -20,7 +20,7 @@ use anchor_spl::associated_token::{
     get_associated_token_address,
     // spl_associated_token_account::instruction::create_associated_token_account,
 };
-use borsh::BorshDeserialize;
+// use borsh::BorshDeserialize; // MI for try_from_slice()
 pub use pumpfun_cpi as cpi;
 use solana_sdk::{compute_budget::ComputeBudgetInstruction, instruction::Instruction};
 use spl_associated_token_account::instruction::create_associated_token_account;
@@ -597,7 +597,9 @@ impl PumpFun {
             .await
             .map_err(error::ClientError::SolanaClientError)?;
 
-        accounts::GlobalAccount::try_from_slice(&account.data)
+        // MI use unchecked version to avoid error: Not all bytes read
+        // accounts::GlobalAccount::try_from_slice(&account.data)
+        solana_sdk::borsh1::try_from_slice_unchecked::<accounts::GlobalAccount>(&account.data)
             .map_err(error::ClientError::BorshError)
     }
 
@@ -623,7 +625,9 @@ impl PumpFun {
             .await
             .map_err(error::ClientError::SolanaClientError)?;
 
-        accounts::BondingCurveAccount::try_from_slice(&account.data)
+        // MI use unchecked version to avoid error: Not all bytes read
+        // accounts::BondingCurveAccount::try_from_slice(&account.data)
+        solana_sdk::borsh1::try_from_slice_unchecked::<accounts::BondingCurveAccount>(&account.data)
             .map_err(error::ClientError::BorshError)
     }
 }
